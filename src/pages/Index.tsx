@@ -1,7 +1,7 @@
 import { ComplianceChecker } from "@/components/ComplianceChecker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield, FileCheck, CheckCircle } from "lucide-react";
-import mimoLogo from "@/assets/mimo-logo.png";
+import mimoLogo from "/lovable-uploads/73110526-5ef3-454d-951f-d199534823c9.png";
 
 const Index = () => {
   return (
