@@ -65,17 +65,67 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
     return { text: "Needs Attention", variant: "destructive" as const };
   };
 
+  const getStatusEmoji = (status: string) => {
+    switch (status) {
+      case "compliant":
+        return "✅";
+      case "warning":
+        return "⚠️";
+      case "non-compliant":
+        return "❌";
+      default:
+        return "❌";
+    }
+  };
+
+  const getRiskLevelEmoji = (risk: string) => {
+    switch (risk) {
+      case "Low":
+        return "✅";
+      case "Medium":
+        return "⚠️";
+      case "High":
+        return "❌";
+      default:
+        return "❌";
+    }
+  };
+
+  const getPrimaryConcerns = () => {
+    const concerns: string[] = [];
+    
+    // Check for missing sections
+    if (result.missingSections.length > 0) {
+      concerns.push(`Missing ${result.missingSections.length} required SOAP section(s)`);
+    }
+    
+    // Check for non-compliant domains
+    const criticalDomains = result.complianceDomains.filter(d => d.status === "non-compliant");
+    if (criticalDomains.length > 0) {
+      concerns.push(`${criticalDomains.length} domain(s) non-compliant`);
+    }
+    
+    // Check for SOAP issues
+    const soapIssues = result.soapFindings.filter(f => f.status !== "compliant");
+    if (soapIssues.length > 0) {
+      concerns.push(`${soapIssues.length} SOAP section(s) with deficiencies`);
+    }
+    
+    return concerns.slice(0, 3); // Top 3 concerns
+  };
+
   const auditReadiness = getAuditReadiness(result.overallScore);
+  const primaryConcerns = getPrimaryConcerns();
 
   return (
     <div className="space-y-6">
-      {/* Executive Summary */}
+      {/* Compliance Executive Summary */}
       <Card className="shadow-elevated border-l-4 border-l-primary">
         <CardHeader className="bg-gradient-subtle">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
-              <CardTitle>Executive Summary</CardTitle>
+              <CardTitle className="text-xl">🏥 COMPLIANCE EXECUTIVE SUMMARY</CardTitle>
             </div>
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
@@ -85,135 +135,174 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
         </CardHeader>
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <FileCheck className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Detected Format</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">{result.detectedFormat}</span>
-                <Badge variant="outline">{Math.round(result.confidence * 100)}% confidence</Badge>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Risk Level</span>
-              </div>
-              <Badge variant={getRiskBadgeVariant(result.riskLevel)} className="text-sm">
-                {result.riskLevel} Risk
-              </Badge>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Audit Readiness</span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant={auditReadiness.variant}>{auditReadiness.text}</Badge>
-                  <span className="text-sm font-medium">{result.overallScore}%</span>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Overall Risk Level:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{getRiskLevelEmoji(result.riskLevel)}</span>
+                  <span className="text-lg font-bold">{result.riskLevel.toUpperCase()}</span>
                 </div>
-                <Progress value={result.overallScore} className="h-2" />
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Primary Concerns:</span>
+                {primaryConcerns.length > 0 ? (
+                  <ul className="space-y-1">
+                    {primaryConcerns.map((concern, index) => (
+                      <li key={index} className="text-sm text-foreground">• {concern}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="text-sm text-success">No major concerns identified</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Audit Readiness:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{getStatusEmoji(auditReadiness.text === "Audit Ready" ? "compliant" : 
+                                                                auditReadiness.text === "Minor Issues" ? "warning" : "non-compliant")}</span>
+                  <span className="text-lg font-bold">{auditReadiness.text.toUpperCase()}</span>
+                </div>
+                <div className="mt-2">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span>Compliance Score</span>
+                    <span className="font-medium">{result.overallScore}%</span>
+                  </div>
+                  <Progress value={result.overallScore} className="h-2" />
+                </div>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Compliance Domains Matrix */}
+      {/* 📊 DETAILED COMPLIANCE MATRIX */}
       <Card className="shadow-compliance">
         <CardHeader>
-          <CardTitle>Generic Compliance Domains</CardTitle>
+          <CardTitle className="text-xl">📊 DETAILED COMPLIANCE MATRIX</CardTitle>
           <CardDescription>
             Comprehensive evaluation across 5 core compliance areas
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {result.complianceDomains.map((domain, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(domain.status)}
-                    <h4 className="font-semibold">{domain.domain}</h4>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge 
-                      variant={domain.status === "compliant" ? "success" : domain.status === "warning" ? "warning" : "destructive"}
-                    >
-                      {domain.status === "compliant" ? "Compliant" : 
-                       domain.status === "warning" ? "Warning" : "Non-Compliant"}
-                    </Badge>
-                    <div className="text-right">
-                      <span className="text-sm font-medium">{domain.score}%</span>
-                      <Progress value={domain.score} className="h-2 w-20" />
-                    </div>
-                  </div>
-                </div>
-                
-                {domain.findings.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="text-sm font-medium text-muted-foreground">Domain Findings:</span>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      {domain.findings.map((finding, findingIndex) => (
-                        <li key={findingIndex} className="text-muted-foreground">{finding}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-3 font-semibold">Domain</th>
+                  <th className="text-left p-3 font-semibold">Status</th>
+                  <th className="text-left p-3 font-semibold">Critical Issues</th>
+                  <th className="text-left p-3 font-semibold">Required Actions</th>
+                  <th className="text-left p-3 font-semibold">Risk Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.complianceDomains.map((domain, index) => (
+                  <tr key={index} className="border-b hover:bg-muted/50">
+                    <td className="p-3">
+                      <div className="font-medium">{domain.domain}</div>
+                      <div className="text-sm text-muted-foreground">{domain.score}%</div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{getStatusEmoji(domain.status)}</span>
+                        <Badge variant={domain.status === "compliant" ? "success" : domain.status === "warning" ? "warning" : "destructive"}>
+                          {domain.status === "compliant" ? "Compliant" : 
+                           domain.status === "warning" ? "Warning" : "Non-Compliant"}
+                        </Badge>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {domain.findings.length > 0 ? (
+                        <ul className="text-sm space-y-1">
+                          {domain.findings.slice(0, 2).map((finding, idx) => (
+                            <li key={idx}>• {finding}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">None identified</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="text-sm">
+                        {domain.status !== "compliant" ? 
+                          `Improve ${domain.domain.toLowerCase()} documentation` : 
+                          "Maintain current standards"
+                        }
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-1">
+                        <span>{domain.score >= 80 ? "✅" : domain.score >= 65 ? "⚠️" : "❌"}</span>
+                        <span className="text-sm font-medium">
+                          {domain.score >= 80 ? "LOW" : domain.score >= 65 ? "MED" : "HIGH"}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
 
-      {/* SOAP Section Analysis */}
+      {/* SOAP SECTION ANALYSIS */}
       <Card className="shadow-compliance">
         <CardHeader>
-          <CardTitle>SOAP Section Analysis</CardTitle>
+          <CardTitle className="text-xl">📋 SOAP SECTION ANALYSIS</CardTitle>
           <CardDescription>
             Section-by-section compliance evaluation with deficiency triggers
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {result.soapFindings.map((finding, index) => (
-              <div key={index} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(finding.status)}
-                    <h4 className="font-semibold">{finding.section}</h4>
+              <div key={index} className="space-y-3">
+                <div className="border-l-4 border-l-primary pl-4">
+                  <h3 className="text-lg font-semibold">
+                    ### {finding.section} ({finding.section.charAt(0)})
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xl">{getStatusEmoji(finding.status)}</span>
+                    <span className="font-medium">
+                      {finding.status === "compliant" ? "COMPLIANT" : 
+                       finding.status === "warning" ? "WARNING" : "NON-COMPLIANT"}
+                    </span>
+                    <span className="text-muted-foreground">—</span>
+                    <span className="text-sm text-muted-foreground">
+                      {finding.issues.length === 0 ? "All requirements met" : `${finding.issues.length} issue(s) identified`}
+                    </span>
                   </div>
-                  <Badge 
-                    variant={finding.status === "compliant" ? "success" : finding.status === "warning" ? "warning" : "destructive"}
-                  >
-                    {finding.status === "compliant" ? "Compliant" : 
-                     finding.status === "warning" ? "Warning" : "Non-Compliant"}
-                  </Badge>
                 </div>
                 
                 {finding.issues.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="text-sm font-medium text-muted-foreground">Issues Found:</span>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
+                  <div className="ml-6 space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      <strong>Findings:</strong>
+                    </div>
+                    <ul className="space-y-1">
                       {finding.issues.map((issue, issueIndex) => (
-                        <li key={issueIndex} className="text-muted-foreground">{issue}</li>
+                        <li key={issueIndex} className="text-sm">• {issue}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
                 {finding.triggers && finding.triggers.length > 0 && (
-                  <div className="space-y-1 bg-muted/50 p-3 rounded">
-                    <span className="text-sm font-medium text-foreground">Required Corrections:</span>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      {finding.triggers.map((trigger, triggerIndex) => (
-                        <li key={triggerIndex} className="text-foreground">{trigger}</li>
-                      ))}
-                    </ul>
+                  <div className="ml-6 bg-warning/10 border-l-4 border-l-warning p-3 rounded-r">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-warning">⚠️</span>
+                      <span className="text-sm font-medium">Example correction:</span>
+                    </div>
+                    {finding.triggers.map((trigger, triggerIndex) => (
+                      <p key={triggerIndex} className="text-sm text-foreground">{trigger}</p>
+                    ))}
                   </div>
                 )}
               </div>
@@ -222,24 +311,34 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
         </CardContent>
       </Card>
 
-      {/* Missing Sections */}
+      {/* Missing/Unknown Sections */}
       {result.missingSections.length > 0 && (
-        <Card className="shadow-compliance border-l-4 border-l-warning">
+        <Card className="shadow-compliance border-l-4 border-l-destructive">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-warning" />
-              Missing Required Sections
+            <CardTitle className="flex items-center gap-2 text-xl">
+              ❌ Missing/Unknown Sections
             </CardTitle>
             <CardDescription>
-              The following sections are required for full compliance
+              Required sections not found in the clinical note
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="space-y-4">
               {result.missingSections.map((section, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
-                  <XCircle className="h-4 w-4 text-destructive" />
-                  <span className="text-sm">{section}</span>
+                <div key={index} className="border-l-4 border-l-destructive pl-4 py-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">❌</span>
+                    <span className="font-semibold">{section}:</span>
+                    <span className="text-muted-foreground">Missing required element</span>
+                  </div>
+                  <div className="bg-destructive/10 p-3 rounded">
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium text-sm">Correction:</span>
+                      <span className="text-sm">
+                        Add comprehensive {section.toLowerCase()} section with all required documentation elements per regulatory guidelines.
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -274,9 +373,8 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
       {/* References */}
       <Card className="shadow-compliance border-l-4 border-l-primary">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5 text-primary" />
-            Regulatory References
+          <CardTitle className="flex items-center gap-2 text-xl">
+            📚 References
           </CardTitle>
           <CardDescription>
             Applicable guidelines and standards for this analysis
@@ -285,11 +383,9 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
         <CardContent>
           <div className="space-y-3">
             {result.references.map((reference, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5">
-                  {index + 1}
-                </div>
-                <span className="text-sm flex-1 font-medium">{reference}</span>
+              <div key={index} className="flex items-start gap-3">
+                <span className="text-muted-foreground">•</span>
+                <span className="text-sm font-medium">{reference}</span>
               </div>
             ))}
           </div>
