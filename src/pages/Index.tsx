@@ -34,7 +34,7 @@ const Index = () => {
           <div className="text-center space-y-4">
             <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full text-sm font-medium text-primary mb-4">
               <Shield className="h-4 w-4" />
-              PROTOTYPE VERSION
+              BETA VERSION
             </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
               Clinical Note Compliance Analysis
@@ -94,7 +94,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="text-center text-sm text-muted-foreground">
             <p>
-              Mimo AI Compliance Tool - Prototype Version | 
+              Mimo AI Compliance Tool - Beta Version | 
               For demonstration purposes only
             </p>
           </div>
