@@ -15,7 +15,7 @@ interface ComplianceResult {
     status: "compliant" | "warning" | "non-compliant";
     findings: string[];
   }[];
-  soapFindings: {
+  sectionFindings: {
     section: string;
     status: "compliant" | "warning" | "non-compliant";
     issues: string[];
@@ -105,10 +105,10 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
       concerns.push(`${criticalDomains.length} domain(s) non-compliant`);
     }
     
-    // Check for SOAP issues
-    const soapIssues = result.soapFindings.filter(f => f.status !== "compliant");
-    if (soapIssues.length > 0) {
-      concerns.push(`${soapIssues.length} SOAP section(s) with deficiencies`);
+    // Check for section issues
+    const sectionIssues = result.sectionFindings.filter(f => f.status !== "compliant");
+    if (sectionIssues.length > 0) {
+      concerns.push(`${sectionIssues.length} section(s) with deficiencies`);
     }
     
     return concerns.slice(0, 3); // Top 3 concerns
@@ -252,17 +252,17 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
         </CardContent>
       </Card>
 
-      {/* SOAP SECTION ANALYSIS */}
+      {/* SECTION ANALYSIS */}
       <Card className="shadow-compliance">
         <CardHeader>
-          <CardTitle className="text-xl">📋 SOAP SECTION ANALYSIS</CardTitle>
+          <CardTitle className="text-xl">📋 SECTION ANALYSIS</CardTitle>
           <CardDescription>
             Section-by-section compliance evaluation with deficiency triggers
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {result.soapFindings.map((finding, index) => (
+            {result.sectionFindings.map((finding, index) => (
               <div key={index} className="space-y-3">
                 <div className="border-l-4 border-l-primary pl-4">
                   <h3 className="text-lg font-semibold">

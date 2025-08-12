@@ -19,7 +19,7 @@ interface ComplianceResult {
     status: "compliant" | "warning" | "non-compliant";
     findings: string[];
   }[];
-  soapFindings: {
+  sectionFindings: {
     section: string;
     status: "compliant" | "warning" | "non-compliant";
     issues: string[];
@@ -34,6 +34,7 @@ export const ComplianceChecker = () => {
   const [noteText, setNoteText] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedPayer, setSelectedPayer] = useState("");
+  const [selectedNoteType, setSelectedNoteType] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<ComplianceResult | null>(null);
 
@@ -183,12 +184,23 @@ export const ComplianceChecker = () => {
     }));
   };
 
-  const detectSOAPFormat = (text: string) => {
-    const requiredSections = ["subjective", "objective", "assessment", "plan"];
+  const detectNoteFormat = (text: string, noteType: string) => {
+    const formatConfigs = {
+      "SOAP": ["subjective", "objective", "assessment", "plan"],
+      "GIRP": ["goals", "intervention", "response", "plan"],
+      "BIRP": ["behavior", "intervention", "response", "plan"],
+      "DAP": ["data", "assessment", "plan"],
+      "Treatment Plan": ["diagnoses", "goals", "interventions", "timeframes"]
+    };
+
+    const requiredSections = formatConfigs[noteType as keyof typeof formatConfigs] || [];
     const normalizedText = text.toLowerCase();
     
     const foundSections = requiredSections.filter(section => 
-      normalizedText.includes(section)
+      normalizedText.includes(section) || 
+      (section === "data" && (normalizedText.includes("session") || normalizedText.includes("attendance"))) ||
+      (section === "diagnoses" && (normalizedText.includes("diagnosis") || normalizedText.includes("dsm"))) ||
+      (section === "timeframes" && (normalizedText.includes("timeline") || normalizedText.includes("duration")))
     );
     
     const missingSectionsCount = requiredSections.length - foundSections.length;
@@ -201,7 +213,7 @@ export const ComplianceChecker = () => {
     if (missingSectionsCount === 0) {
       status = "compliant";
       riskLevel = "Low";
-    } else if (missingSectionsCount <= 2) {
+    } else if (missingSectionsCount <= 1) {
       status = "warning";
       riskLevel = "Medium";
     } else {
@@ -210,10 +222,10 @@ export const ComplianceChecker = () => {
     }
     
     return {
-      isSOAP: foundSections.length > 0,
+      isValidFormat: foundSections.length > 0,
       foundSections: foundSections.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
       missingSections: requiredSections
-        .filter(section => !normalizedText.includes(section))
+        .filter(section => !foundSections.includes(section))
         .map(s => s.charAt(0).toUpperCase() + s.slice(1)),
       confidence,
       status,
@@ -222,8 +234,66 @@ export const ComplianceChecker = () => {
     };
   };
 
+  const analyzeSectionContent = (text: string, foundSections: string[], selectedState: string, noteType: string) => {
+    // Different analysis logic based on note type
+    switch (noteType) {
+      case "SOAP":
+        return analyzeSOAPContent(text, foundSections, selectedState);
+      case "GIRP":
+        return analyzeGIRPContent(text, foundSections, selectedState);
+      case "BIRP":
+        return analyzeBIRPContent(text, foundSections, selectedState);
+      case "DAP":
+        return analyzeDAPContent(text, foundSections, selectedState);
+      case "Treatment Plan":
+        return analyzeTreatmentPlanContent(text, foundSections, selectedState);
+      default:
+        return [];
+    }
+  };
+
+  const analyzeGIRPContent = (text: string, foundSections: string[], selectedState: string) => {
+    const sections = ["Goals", "Intervention", "Response", "Plan"];
+    return sections.map(section => ({
+      section,
+      status: (foundSections.includes(section) ? "compliant" : "non-compliant") as "compliant" | "warning" | "non-compliant",
+      issues: foundSections.includes(section) ? [] : [`Missing ${section} section`],
+      triggers: foundSections.includes(section) ? [] : [`Add ${section.toLowerCase()} documentation`]
+    }));
+  };
+
+  const analyzeBIRPContent = (text: string, foundSections: string[], selectedState: string) => {
+    const sections = ["Behavior", "Intervention", "Response", "Plan"];
+    return sections.map(section => ({
+      section,
+      status: (foundSections.includes(section) ? "compliant" : "non-compliant") as "compliant" | "warning" | "non-compliant",
+      issues: foundSections.includes(section) ? [] : [`Missing ${section} section`],
+      triggers: foundSections.includes(section) ? [] : [`Add ${section.toLowerCase()} documentation`]
+    }));
+  };
+
+  const analyzeDAPContent = (text: string, foundSections: string[], selectedState: string) => {
+    const sections = ["Data", "Assessment", "Plan"];
+    return sections.map(section => ({
+      section,
+      status: (foundSections.includes(section) ? "compliant" : "non-compliant") as "compliant" | "warning" | "non-compliant",
+      issues: foundSections.includes(section) ? [] : [`Missing ${section} section`],
+      triggers: foundSections.includes(section) ? [] : [`Add ${section.toLowerCase()} documentation`]
+    }));
+  };
+
+  const analyzeTreatmentPlanContent = (text: string, foundSections: string[], selectedState: string) => {
+    const sections = ["Diagnoses", "Goals", "Interventions", "Timeframes"];
+    return sections.map(section => ({
+      section,
+      status: (foundSections.includes(section) ? "compliant" : "non-compliant") as "compliant" | "warning" | "non-compliant",
+      issues: foundSections.includes(section) ? [] : [`Missing ${section} section`],
+      triggers: foundSections.includes(section) ? [] : [`Add ${section.toLowerCase()} documentation`]
+    }));
+  };
+
   const analyzeNote = async () => {
-    if (!noteText.trim() || !selectedState || !selectedPayer) {
+    if (!noteText.trim() || !selectedState || !selectedPayer || !selectedNoteType) {
       return;
     }
 
@@ -232,49 +302,49 @@ export const ComplianceChecker = () => {
     // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const detection = detectSOAPFormat(noteText);
+    const detection = detectNoteFormat(noteText, selectedNoteType);
     
-    if (!detection.isSOAP) {
-      // Non-SOAP format
-      const nonSOAPResult: ComplianceResult = {
-        detectedFormat: "Unsupported format in prototype",
+    if (!detection.isValidFormat) {
+      // Invalid format
+      const invalidResult: ComplianceResult = {
+        detectedFormat: `Invalid ${selectedNoteType} format`,
         confidence: 0,
         riskLevel: "High",
         overallScore: 0,
         complianceDomains: [],
-        soapFindings: [],
-        missingSections: [],
-        recommendations: ["This prototype only supports SOAP note format", "Please ensure your note contains Subjective, Objective, Assessment, and Plan sections"],
+        sectionFindings: [],
+        missingSections: detection.missingSections,
+        recommendations: [`This note does not contain the required ${selectedNoteType} sections`, `Please ensure your note contains the required sections for ${selectedNoteType} format`],
         references: [
           `${selectedState} Medicaid Provider Manual - Clinical Documentation Standards`,
           "CMS Medicare Progress Note Guidelines - Section 1861(s)(2)",
           `${selectedState} Administrative Code - Mental Health Documentation Requirements`
         ]
       };
-      setResult(nonSOAPResult);
+      setResult(invalidResult);
       setIsAnalyzing(false);
       return;
     }
     
-    // SOAP format detected - perform comprehensive analysis
-    const soapFindings = analyzeSOAPContent(noteText, detection.foundSections, selectedState);
-    const complianceDomains = analyzeComplianceDomains(soapFindings, detection.overallScore);
+    // Valid format detected - perform comprehensive analysis
+    const sectionFindings = analyzeSectionContent(noteText, detection.foundSections, selectedState, selectedNoteType);
+    const complianceDomains = analyzeComplianceDomains(sectionFindings, detection.overallScore);
     
     // Calculate adjusted overall score based on domain analysis
     const domainAverage = Math.round(complianceDomains.reduce((sum, domain) => sum + domain.score, 0) / complianceDomains.length);
     const adjustedScore = Math.round((detection.overallScore + domainAverage) / 2);
 
     const result: ComplianceResult = {
-      detectedFormat: "SOAP Note",
+      detectedFormat: `${selectedNoteType} Note`,
       confidence: detection.confidence,
       riskLevel: adjustedScore >= 80 ? "Low" : adjustedScore >= 65 ? "Medium" : "High",
       overallScore: adjustedScore,
       complianceDomains,
-      soapFindings,
+      sectionFindings,
       missingSections: detection.missingSections,
       recommendations: [
         ...detection.missingSections.map(section => `❌ Add missing ${section} section with comprehensive documentation`),
-        ...soapFindings.flatMap(finding => finding.triggers || []),
+        ...sectionFindings.flatMap(finding => finding.triggers || []),
         `Ensure full compliance with ${selectedState} state regulations`,
         `Verify ${selectedPayer} billing and documentation requirements`,
         "Include provider signature, credentials, and date",
@@ -318,7 +388,7 @@ export const ComplianceChecker = () => {
             <CardTitle>Clinical Note Input</CardTitle>
           </div>
           <CardDescription>
-            Paste your SOAP note below and select the appropriate state and payer type for compliance analysis
+            Paste your clinical note below and select the note type, state, and payer for compliance analysis
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -328,15 +398,12 @@ export const ComplianceChecker = () => {
             </label>
             <Textarea
               id="note"
-              placeholder="Paste your SOAP note here...
+              placeholder="Paste your clinical note here...
 
-Example:
+Example for SOAP:
 S: Patient reports feeling anxious and depressed for the past 2 weeks. Reports difficulty sleeping and decreased appetite. Denies suicidal ideation.
-
 O: Patient appears well-groomed, cooperative, appropriate eye contact. Speech normal rate and tone. Mood appears dysthymic. Affect congruent with mood.
-
 A: Major Depressive Episode, moderate severity (F32.1). Patient demonstrates good insight into condition.
-
 P: Continue sertraline 50mg daily. Schedule follow-up in 2 weeks. Provide psychoeducation materials."
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
@@ -344,7 +411,23 @@ P: Continue sertraline 50mg daily. Schedule follow-up in 2 weeks. Provide psycho
             />
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Note Type</label>
+              <Select value={selectedNoteType} onValueChange={setSelectedNoteType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select note type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SOAP">SOAP Note</SelectItem>
+                  <SelectItem value="GIRP">GIRP Note</SelectItem>
+                  <SelectItem value="BIRP">BIRP Note</SelectItem>
+                  <SelectItem value="DAP">DAP Note</SelectItem>
+                  <SelectItem value="Treatment Plan">Treatment Plan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">State</label>
               <Select value={selectedState} onValueChange={setSelectedState}>
@@ -376,7 +459,7 @@ P: Continue sertraline 50mg daily. Schedule follow-up in 2 weeks. Provide psycho
 
           <Button 
             onClick={analyzeNote} 
-            disabled={!noteText.trim() || !selectedState || !selectedPayer || isAnalyzing}
+            disabled={!noteText.trim() || !selectedState || !selectedPayer || !selectedNoteType || isAnalyzing}
             className="w-full bg-gradient-primary hover:opacity-90 shadow-medical"
             size="lg"
           >
