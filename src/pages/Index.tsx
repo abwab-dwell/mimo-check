@@ -1,17 +1,20 @@
 import { ComplianceChecker } from "@/components/ComplianceChecker";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Shield, FileCheck, CheckCircle } from "lucide-react";
+import { Shield, FileCheck, CheckCircle } from "lucide-react";
+import mimoLogo from "@/assets/mimo-logo.png";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b shadow-compliance">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-primary p-2 rounded-lg shadow-medical">
-              <Brain className="h-6 w-6 text-white" />
-            </div>
+            <img 
+              src={mimoLogo} 
+              alt="Mimo AI Logo" 
+              className="h-10 w-20 object-contain"
+            />
             <div>
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 Mimo AI
