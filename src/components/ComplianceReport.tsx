@@ -9,13 +9,21 @@ interface ComplianceResult {
   confidence: number;
   riskLevel: "Low" | "Medium" | "High";
   overallScore: number;
-  findings: {
+  complianceDomains: {
+    domain: string;
+    score: number;
+    status: "compliant" | "warning" | "non-compliant";
+    findings: string[];
+  }[];
+  soapFindings: {
     section: string;
     status: "compliant" | "warning" | "non-compliant";
     issues: string[];
+    triggers?: string[];
   }[];
   missingSections: string[];
   recommendations: string[];
+  references: string[];
 }
 
 interface ComplianceReportProps {
@@ -115,17 +123,64 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
         </CardContent>
       </Card>
 
+      {/* Compliance Domains Matrix */}
+      <Card className="shadow-compliance">
+        <CardHeader>
+          <CardTitle>Generic Compliance Domains</CardTitle>
+          <CardDescription>
+            Comprehensive evaluation across 5 core compliance areas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {result.complianceDomains.map((domain, index) => (
+              <div key={index} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(domain.status)}
+                    <h4 className="font-semibold">{domain.domain}</h4>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge 
+                      variant={domain.status === "compliant" ? "success" : domain.status === "warning" ? "warning" : "destructive"}
+                    >
+                      {domain.status === "compliant" ? "Compliant" : 
+                       domain.status === "warning" ? "Warning" : "Non-Compliant"}
+                    </Badge>
+                    <div className="text-right">
+                      <span className="text-sm font-medium">{domain.score}%</span>
+                      <Progress value={domain.score} className="h-2 w-20" />
+                    </div>
+                  </div>
+                </div>
+                
+                {domain.findings.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Domain Findings:</span>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {domain.findings.map((finding, findingIndex) => (
+                        <li key={findingIndex} className="text-muted-foreground">{finding}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* SOAP Section Analysis */}
       <Card className="shadow-compliance">
         <CardHeader>
           <CardTitle>SOAP Section Analysis</CardTitle>
           <CardDescription>
-            Section-by-section compliance evaluation for {state} regulations and {payer} requirements
+            Section-by-section compliance evaluation with deficiency triggers
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {result.findings.map((finding, index) => (
+            {result.soapFindings.map((finding, index) => (
               <div key={index} className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -146,6 +201,17 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
                     <ul className="list-disc list-inside space-y-1 text-sm">
                       {finding.issues.map((issue, issueIndex) => (
                         <li key={issueIndex} className="text-muted-foreground">{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {finding.triggers && finding.triggers.length > 0 && (
+                  <div className="space-y-1 bg-muted/50 p-3 rounded">
+                    <span className="text-sm font-medium text-foreground">Required Corrections:</span>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {finding.triggers.map((trigger, triggerIndex) => (
+                        <li key={triggerIndex} className="text-foreground">{trigger}</li>
                       ))}
                     </ul>
                   </div>
@@ -200,6 +266,30 @@ export const ComplianceReport = ({ result, state, payer }: ComplianceReportProps
                   {index + 1}
                 </div>
                 <span className="text-sm flex-1">{recommendation}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      {/* References */}
+      <Card className="shadow-compliance border-l-4 border-l-primary">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-primary" />
+            Regulatory References
+          </CardTitle>
+          <CardDescription>
+            Applicable guidelines and standards for this analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {result.references.map((reference, index) => (
+              <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5">
+                  {index + 1}
+                </div>
+                <span className="text-sm flex-1 font-medium">{reference}</span>
               </div>
             ))}
           </div>
